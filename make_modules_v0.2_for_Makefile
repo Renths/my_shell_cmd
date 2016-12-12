@@ -1,0 +1,141 @@
+
+#---------函数：检查返回值---------
+fun_return_check()
+{
+	if [ $? == 0 ]
+	then 
+		echo 成功
+	else 
+		echo 失败 请检查语法
+		exit
+	fi
+}
+#------参数个数检查 1~5个-------------
+if [ $# -le 0 ]
+then
+	echo 参数过少，缺少对象比如一个.c文件
+	exit
+fi
+if [ $# -gt 5 ]
+then 
+	echo 参数过多（$#个），目前只支持5个
+	exit
+fi
+#------------输出信息-------------------------
+echo   --制作 字符 模块脚本的Makefile启动
+echo   --正在生成Makefile脚本
+echo   --版本：v0.2		描述：修改处理方式，增加对内核模块的处理方式
+echo   --作者 夏敏俊
+mk_dir=/home/xmj/transplant/linux/linux-2.6.32.2/drivers/char
+linux_dir=/home/xmj/transplant/linux/linux-2.6.32.2
+cru_dir=$(pwd)
+echo 当前路径 $cru_dir
+#-----------------参数处理 将参数赋值给对个arg[]的数组，方便处理---------
+ARGS=$#		#参数个数
+#echo 参数有$ARGS个
+while [ $ARGS -gt 0 ]
+do
+	if [ $ARGS -eq 5 ]  #处理第5个参数
+	then
+		arg[$ARGS]=$5	#数组
+	fi
+	
+	if [ $ARGS -eq 4 ]  #处理第4个参数
+	then
+		arg[$ARGS]=$4
+	fi
+	if [ $ARGS -eq 3 ]  #处理第3个参数
+	then
+		arg[$ARGS]=$3
+	fi
+	if [ $ARGS -eq 2 ]  #处理第2个参数
+	then
+		arg[$ARGS]=$2
+	fi
+	if [ $ARGS -eq 1 ]  #处理第1个参数
+	then
+		arg[$ARGS]=$1
+	fi
+	#echo 第 $ARGS 此循环	#调试
+	#echo 本次参数是 ${arg[$ARGS]} #调试
+	ARGS=`expr $ARGS - 1`
+done
+#---------检查传入的参数是否存在于当前文件中------------------
+ARGS=$#
+while [ $ARGS -gt 0 ]
+do
+	if [ ! -f "${arg[$ARGS]}" ]
+	then
+		echo 未找到第$ARGS 参数:${arg[$ARGS]}
+		exit
+	fi
+	ARGS=`expr $ARGS - 1`
+done
+
+
+#------------参数类型检查 看是否是.c文件----
+
+ARGS=$#
+while [ $ARGS -gt 0 ]
+do
+	 arg_len_all=${#arg[$ARGS]}                     #文件名的总长度
+	 arg_len_name=`expr $arg_len_all - 2`    #除开后缀后的长度
+	 arg_type=${arg[$ARGS]:${arg_len_name}:$arg_len_all}    #字符串截取 只要后面两位 文件类型
+	# echo $arg_len_all $arg_len_name $arg_type 调试信息
+	 if [ $arg_type != ".c" ]
+	 then
+	     echo 第$ARGS个参数，不支持$arg_type的文件类型,请指定一个.c文件
+	     exit
+	 fi
+	ARGS=`expr $ARGS - 1`
+done
+
+
+#------------------将.c替换为.o-------------
+ARGS=$#
+while [ $ARGS -gt 0 ]
+do
+
+	#echo ${arg[$ARGS]}	#调试
+	arg[$ARGS]=${arg[$ARGS]/.c/.o}			#将每个.c替换为.o
+	#echo ${arg[$ARGS]}	#调试
+	arg[$ARGS]="obj-m += ${arg[$ARGS]}"		#为每个.o 前面加上 "obj-m += "
+	
+	#echo ${arg[$ARGS]}	#调试 
+	ARGS=`expr $ARGS - 1`
+done
+#---------------Makefile模板----------------
+#检查下当前是否有Makefile文件
+if [ -f "Makefile" ]
+then
+	tag=0 #初始化
+	read -p "检查到有Makefile文件已存在，将执行覆盖操作，是否继续？[yes or no?]" tag
+	if [ $tag != "yes" ]
+	then
+		echo 已退出！
+		exit
+	fi
+fi
+#向Makefile写以下内容
+echo "#说明：此文档建一个linux内核" > Makefile
+echo "#日期：$`date`" >> Makefile
+echo "KERNEL_DIR ?= $linux_dir">>Makefile
+#-----------------------------------#
+ARGS=$#								#
+while [ $ARGS -gt 0 ]				#
+do									#作用：根据输入的参数，将目标写入Makefile
+	echo "${arg[$ARGS]}">>Makefile	#
+	ARGS=`expr $ARGS - 1`			#
+done								#
+#-----------------------------------#
+echo "default:">>Makefile
+echo '	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) modules'>>Makefile
+echo "clean:">>Makefile
+echo '	@rm -f *.o *.ko *.order *.sy *.mod.* *.symvers*'>>Makefile
+#-------------------------------------------
+echo ----ok  以下是Makefile内容--------
+cat Makefile
+echo --------完成--------
+echo 请使用make进行编译
+
+

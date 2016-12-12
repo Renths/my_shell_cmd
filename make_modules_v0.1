@@ -1,0 +1,105 @@
+
+#---------函数：检查返回值---------
+fun_return_check()
+{
+	if [ $? == 0 ]
+	then 
+		echo 成功
+	else 
+		echo 失败 请检查语法
+		exit
+	fi
+}
+#------------检查参数个数----------------------
+if [ $# -gt 1 ]
+then 
+	echo 参数过多。  已退出
+	exit  #退出
+fi
+if [ $# -lt 1 ]
+then
+	echo 缺少操作对象。已退出
+	exit
+fi
+
+echo   制作 字符 模块脚本启动 
+echo   版本：2016年11月18日
+echo   作者 夏敏俊
+mk_dir=/home/xmj/transplant/linux/linux-2.6.32.2/drivers/char
+linux_dir=/home/xmj/transplant/linux/linux-2.6.32.2
+obj=$1
+cru_dir=$(pwd)
+echo 当前路径 $cru_dir
+#------文件类型检查只允许.c文件--------------
+#echo ${#obj}				#检查是否为.c文件
+obj_len_all=${#obj}						#文件名的总长度
+obj_len_name=`expr $obj_len_all - 2`	#除开后缀后的长度
+obj_type=${obj:${obj_len_name}:$obj_len_all}	#字符串截取 只要后面两位 文件类型
+#echo $obj_len_all $obj_len_name $obj_type 调试信息
+if [ $obj_type != ".c" ]
+then
+	echo 不支持$obj_type的文件类型,请指定一个.c文件
+	exit
+fi
+#------处理字符串将*.c改成*.o--------------
+obj_o=${obj/.c/.o}		#带.o后缀
+obj_ko=${obj/.c/.ko}	#带.ko后缀
+obj_=${obj/.c/}			#不带后缀的
+echo 处理后的字符是$obj_o  $obj_ko $obj_
+
+#-------1.复制到/drivers/char-----
+echo	1.复制$1到$mk_dir...
+cp $1 $mk_dir
+fun_return_check
+#-------2.修改/drivers/char下的Makefile---
+echo	2.备份Makefile 为Makefile_backup
+cp "$mk_dir/Makefile" "$mk_dir/Makefile_backup"
+fun_return_check
+echo    3.修改字符模块的Makefile...
+echo obj-m += $obj_o >> "$mk_dir/Makefile"
+fun_return_check
+#-------4.执行linux根目录下的make modules
+echo	4. 执行linux根目录下的make modules
+cd $linux_dir
+pwd 
+make modules
+	if [ $? == 0 ]
+	then 
+		echo 成功
+	else 
+		echo --------[编译失败]--------
+		#--------7.恢复Makefile----
+		echo 7.恢复Makefile
+		cd $mk_dir
+		cp Makefile_backup Makefile
+		fun_return_check
+		#---------8删除Makefile_backup-----------------
+		echo 8.删除Makefile_backup
+		rm Makefile_backup
+		rm "$obj_".*	#清除所有相关文件
+		fun_return_check
+		echo ----第4步出错请检查语法-------
+		echo -----任务失败！！！！---------
+		exit #退出
+	fi
+#--------5.将编译好的模块复制回来--------
+echo 5.复制  $obj_ko 到当前文件..
+cd $cru_dir
+cp "$mk_dir/$obj_ko" ./
+fun_return_check
+#--------6.添加可执行权限-------
+echo 6.添加可执行权限
+chmod +x $obj_ko
+fun_return_check
+#--------7.恢复Makefile----
+echo 7.恢复Makefile
+cd $mk_dir
+cp Makefile_backup Makefile
+fun_return_check
+#---------8删除Makefile_backup -----------------
+echo 8.删除临时文件... 
+rm Makefile_backup
+fun_return_check
+rm "$obj_".*   #清除所有相关文件
+#--删除 传入的的文件和生成的文件
+echo --------成功！！-------------

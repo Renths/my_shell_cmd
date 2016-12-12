@@ -1,0 +1,5 @@
+obj=/tftpboot/
+sou=./arch/arm/boot/uImage
+echo 正在拷贝到$obj ...
+cp $sou $obj
+echo 结束
